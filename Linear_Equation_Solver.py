@@ -1,7 +1,7 @@
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 import numpy as np
 
-app = Flask(__name__)
+app = Flask(__name__, template_folder='templates')
 
 @app.route('/')
 def index():
@@ -24,7 +24,7 @@ def solve():
         b2 = float(request.form['b2'])
         b3 = float(request.form['b3'])
     except ValueError:
-        return "Invalid input. Please enter numerical values."
+        return jsonify({'error': 'Invalid input. Please enter numerical values.'})
 
     # Coefficient matrix
     A = np.array([[a11, a12, a13],
@@ -35,20 +35,36 @@ def solve():
     B = np.array([b1, b2, b3])
 
     try:
-        # Gaussian Elimination Method
+        # Gaussian Elimination Method with steps
         A_aug = np.column_stack((A, B.astype(float)))  # Augmented matrix
-
         n = A_aug.shape[0]
+
+        steps = []
+        steps.append({
+            'step': 0,
+            'matrix': A_aug.copy().tolist(),
+        })
 
         # Forward elimination
         for i in range(n):
             # Divide the current row by the diagonal element to make it 1
             divisor = A_aug[i, i]
             A_aug[i] /= divisor
+
+            steps.append({
+                'step': i + 1,
+                'matrix': A_aug.copy().tolist(),
+            })
+
             # Eliminate below the diagonal
             for j in range(i + 1, n):
                 multiplier = A_aug[j, i]
                 A_aug[j] -= multiplier * A_aug[i]
+
+                steps.append({
+                    'step': j + 1,
+                    'matrix': A_aug.copy().tolist(),
+                })
 
         # Backward substitution
         sol = np.zeros(n)
@@ -57,10 +73,15 @@ def solve():
 
         x, y, z = sol
 
-        return render_template('result.html', x=x, y=y, z=z)
+        return jsonify({
+            'x': x,
+            'y': y,
+            'z': z,
+            'steps': steps,
+        })
 
     except np.linalg.LinAlgError:
-        return "Matrix is singular. Unable to solve."
+        return jsonify({'error': 'Matrix is singular. Unable to solve.'})
 
 if __name__ == '__main__':
     app.run(debug=True)
