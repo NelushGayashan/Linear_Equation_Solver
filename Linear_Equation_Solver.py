@@ -1,46 +1,66 @@
+from flask import Flask, render_template, request
 import numpy as np
 
-# Coefficient matrix
-A = np.array([[76, -25, -50],
-              [-25, 56, -1],
-              [-50, -1, 81]])
+app = Flask(__name__)
 
-# Right-hand side vector
-B = np.array([10, 0, 0])
+@app.route('/')
+def index():
+    return render_template('index.html')
 
-# Inverse Matrix Method
-A_inv = np.linalg.inv(A)
-solution_inv = np.dot(A_inv, B)
-x_inv, y_inv, z_inv = solution_inv
-print("Using Inverse Matrix Method:")
-print(f"x = {x_inv}")
-print(f"y = {y_inv}")
-print(f"z = {z_inv}")
+@app.route('/solve', methods=['POST'])
+def solve():
+    # Get coefficients from form input
+    try:
+        a11 = float(request.form['a11'])
+        a12 = float(request.form['a12'])
+        a13 = float(request.form['a13'])
+        a21 = float(request.form['a21'])
+        a22 = float(request.form['a22'])
+        a23 = float(request.form['a23'])
+        a31 = float(request.form['a31'])
+        a32 = float(request.form['a32'])
+        a33 = float(request.form['a33'])
+        b1 = float(request.form['b1'])
+        b2 = float(request.form['b2'])
+        b3 = float(request.form['b3'])
+    except ValueError:
+        return "Invalid input. Please enter numerical values."
 
-# Gaussian Elimination Method
-A_aug = np.array([[76, -25, -50, 10],
-                  [-25, 56, -1, 0],
-                  [-50, -1, 81, 0]], dtype=float)  # Ensure dtype is float for precision
+    # Coefficient matrix
+    A = np.array([[a11, a12, a13],
+                  [a21, a22, a23],
+                  [a31, a32, a33]])
 
-n = A_aug.shape[0]
+    # Right-hand side vector
+    B = np.array([b1, b2, b3])
 
-# Forward elimination
-for i in range(n):
-    # Divide the current row by the diagonal element to make it 1
-    divisor = A_aug[i, i]
-    A_aug[i] /= divisor
-    # Eliminate below the diagonal
-    for j in range(i + 1, n):
-        multiplier = A_aug[j, i]
-        A_aug[j] -= multiplier * A_aug[i]
+    try:
+        # Gaussian Elimination Method
+        A_aug = np.column_stack((A, B.astype(float)))  # Augmented matrix
 
-# Backward substitution
-sol = np.zeros(n)
-for i in range(n - 1, -1, -1):
-    sol[i] = A_aug[i, -1] - np.dot(A_aug[i, :-1], sol)
+        n = A_aug.shape[0]
 
-x_gauss, y_gauss, z_gauss = sol
-print("\nUsing Gaussian Elimination Method:")
-print(f"x = {x_gauss}")
-print(f"y = {y_gauss}")
-print(f"z = {z_gauss}")
+        # Forward elimination
+        for i in range(n):
+            # Divide the current row by the diagonal element to make it 1
+            divisor = A_aug[i, i]
+            A_aug[i] /= divisor
+            # Eliminate below the diagonal
+            for j in range(i + 1, n):
+                multiplier = A_aug[j, i]
+                A_aug[j] -= multiplier * A_aug[i]
+
+        # Backward substitution
+        sol = np.zeros(n)
+        for i in range(n - 1, -1, -1):
+            sol[i] = A_aug[i, -1] - np.dot(A_aug[i, :-1], sol)
+
+        x, y, z = sol
+
+        return render_template('result.html', x=x, y=y, z=z)
+
+    except np.linalg.LinAlgError:
+        return "Matrix is singular. Unable to solve."
+
+if __name__ == '__main__':
+    app.run(debug=True)
